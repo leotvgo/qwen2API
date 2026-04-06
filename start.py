@@ -84,14 +84,41 @@ def start_backend() -> subprocess.Popen:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(WORKSPACE_DIR)
     
+    # 为了能读取输出并判断启动完毕，我们接管 stdout，并使用线程边读边打印
     proc = subprocess.Popen(
         [python_exec, "backend/main.py"],
         cwd=WORKSPACE_DIR,
         env=env,
-        stdout=None, # 直接抛出到终端，暴露语法错误
-        stderr=subprocess.STDOUT
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        encoding='utf-8',
+        errors='replace'
     )
-    print(f"✓ Backend 已点火 (PID: {proc.pid}) -> 终端直出报错")
+    print(f"✓ Backend 进程已点火 (PID: {proc.pid})，正在初始化千问浏览器内核，请耐心等待...")
+    
+    import threading
+    
+    # 使用事件来通知主线程初始化完成
+    ready_event = threading.Event()
+    
+    def read_output():
+        for line in proc.stdout:
+            print(line, end="")
+            if "Browser engine started" in line or "Application startup complete" in line:
+                ready_event.set()
+                
+    t = threading.Thread(target=read_output, daemon=True)
+    t.start()
+    
+    # 阻塞等待，最多等 5 分钟
+    started = ready_event.wait(timeout=300)
+    if not started:
+        print("❌ [严重警告] 后端内核初始化超时或失败，系统可能无法正常工作！")
+    else:
+        print("✓ 底层铁壁已完全就绪。")
+        
     return proc
 
 def start_frontend() -> subprocess.Popen:
