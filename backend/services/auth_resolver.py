@@ -205,110 +205,73 @@ async def register_qwen_account() -> Optional[Account]:
                     await page.goto(f"{BASE_URL}/auth?action=signup", wait_until="domcontentloaded", timeout=60000)
                 except Exception as e:
                     log.warning(f"[Register] [2/7] 页面加载异常: {e}")
-                    pass
 
-            log.info("[Register] [3/7] 填写注册表单...")
-            name_input = None
-            for sel in ['input[placeholder*="Full Name"]', 'input[placeholder*="Name"]']:
-                try:
-                    name_input = await page.wait_for_selector(sel, timeout=15000)
-                    if name_input: break
-                except Exception:
-                    pass
-            if not name_input:
-                inputs = await page.query_selector_all('input')
-                name_input = inputs[0] if len(inputs) >= 4 else None
-            if not name_input:
-                log.error("[Register] [3/7] 找不到姓名输入框，注册中止")
-                return None
-
-            await name_input.click(); await name_input.fill(username)
-            log.info(f"[Register] [3/7]  ✓ 姓名: {username}")
-            email_input = await page.query_selector('input[placeholder*="Email"]')
-            if not email_input:
-                inputs = await page.query_selector_all('input')
-                email_input = inputs[1] if len(inputs) >= 2 else None
-            if email_input: await email_input.click(); await email_input.fill(email)
-            log.info(f"[Register] [3/7]  ✓ 邮箱: {email}")
-
-            pwd_input = await page.query_selector('input[placeholder*="Password"]:not([placeholder*="Again"])')
-            if not pwd_input:
-                inputs = await page.query_selector_all('input')
-                pwd_input = inputs[2] if len(inputs) >= 3 else None
-            if pwd_input: await pwd_input.click(); await pwd_input.fill(password)
-
-            confirm_input = await page.query_selector('input[placeholder*="Again"]')
-            if not confirm_input:
-                inputs = await page.query_selector_all('input')
-                confirm_input = inputs[3] if len(inputs) >= 4 else None
-            if confirm_input: await confirm_input.click(); await confirm_input.fill(password)
-            log.info("[Register] [3/7]  ✓ 密码已填写")
-
-            checkbox = await page.query_selector('input[type="checkbox"]')
-            if checkbox and not await checkbox.is_checked(): await checkbox.click()
-            else:
-                agree = await page.query_selector('text=I agree')
-                if agree: await agree.click()
-            log.info("[Register] [3/7]  ✓ 同意条款")
-
-            log.info("[Register] [4/7] 提交注册表单...")
-            await asyncio.sleep(1)
-            submit = await page.query_selector('button:has-text("Create Account")') or await page.query_selector('button[type="submit"]')
-            if submit: await submit.click()
-            log.info("[Register] [4/7] 已点击提交，等待页面跳转（6s）...")
-            await asyncio.sleep(6)
-
-            url_after = page.url
-            log.info(f"[Register] [4/7] 提交后URL: {url_after}")
-
-            # Check if already logged in (redirected to main page)
-            token = None
-            if BASE_URL in url_after and "auth" not in url_after:
-                log.info("[Register] [5/7] 已跳转主页，尝试直接获取token...")
-                await asyncio.sleep(3)
-                token = await page.evaluate("localStorage.getItem('token')")
-                if token:
-                    log.info("[Register] [5/7] ✓ 注册后直接获取到token，跳过邮件验证")
-
-            # If no token yet, try explicit login with email+password (faster than email poll)
-            if not token:
-                log.info("[Register] [5/7] 尝试用账号密码直接登录...")
-                try:
-                    await page.goto(f"{BASE_URL}/auth", wait_until="domcontentloaded", timeout=30000)
-                    await asyncio.sleep(3)
-                    li_email = await page.query_selector('input[placeholder*="Email"]')
-                    if li_email: await li_email.fill(email)
-                    li_pwd = await page.query_selector('input[type="password"]')
-                    if li_pwd: await li_pwd.fill(password)
-                    li_btn = await page.query_selector('button:has-text("Log in")') or await page.query_selector('button[type="submit"]')
-                    if li_btn: await li_btn.click()
-                    await asyncio.sleep(8)
-                    token = await page.evaluate("localStorage.getItem('token')")
-                    if token:
-                        log.info("[Register] [5/7] ✓ 直接登录成功，获取到token")
-                except Exception as e:
-                    log.warning(f"[Register] [5/7] 直接登录失败: {e}")
-
-            # If still no token, poll email for verification link
-            if not token:
-                log.info("[Register] [6/7] 等待验证邮件（最多5分钟）...")
-                verify_link = await mail_client.get_verify_link(timeout_sec=300)
-
-                if not verify_link:
-                    log.error("[Register] [6/7] 未收到验证邮件，注册失败")
+                log.info("[Register] [3/7] 填写注册表单...")
+                name_input = None
+                for sel in ['input[placeholder*="Full Name"]', 'input[placeholder*="Name"]']:
+                    try:
+                        name_input = await page.wait_for_selector(sel, timeout=15000)
+                        if name_input: break
+                    except Exception:
+                        pass
+                if not name_input:
+                    inputs = await page.query_selector_all('input')
+                    name_input = inputs[0] if len(inputs) >= 4 else None
+                if not name_input:
+                    log.error("[Register] [3/7] 找不到姓名输入框，注册中止")
                     return None
 
-                log.info(f"[Register] [6/7] ✓ 收到验证链接，访问中...")
-                try:
-                    await page.goto(verify_link, wait_until="domcontentloaded", timeout=30000)
-                except Exception: pass
-                await asyncio.sleep(6)
-                token = await page.evaluate("localStorage.getItem('token')")
-                log.info(f"[Register] [6/7] 验证后URL: {page.url}")
+                await name_input.click(); await name_input.fill(username)
+                log.info(f"[Register] [3/7]  ✓ 姓名: {username}")
+                email_input = await page.query_selector('input[placeholder*="Email"]')
+                if not email_input:
+                    inputs = await page.query_selector_all('input')
+                    email_input = inputs[1] if len(inputs) >= 2 else None
+                if email_input: await email_input.click(); await email_input.fill(email)
+                log.info(f"[Register] [3/7]  ✓ 邮箱: {email}")
 
-                # Login after verification
+                pwd_input = await page.query_selector('input[placeholder*="Password"]:not([placeholder*="Again"])')
+                if not pwd_input:
+                    inputs = await page.query_selector_all('input')
+                    pwd_input = inputs[2] if len(inputs) >= 3 else None
+                if pwd_input: await pwd_input.click(); await pwd_input.fill(password)
+
+                confirm_input = await page.query_selector('input[placeholder*="Again"]')
+                if not confirm_input:
+                    inputs = await page.query_selector_all('input')
+                    confirm_input = inputs[3] if len(inputs) >= 4 else None
+                if confirm_input: await confirm_input.click(); await confirm_input.fill(password)
+                log.info("[Register] [3/7]  ✓ 密码已填写")
+
+                checkbox = await page.query_selector('input[type="checkbox"]')
+                if checkbox and not await checkbox.is_checked(): await checkbox.click()
+                else:
+                    agree = await page.query_selector('text=I agree')
+                    if agree: await agree.click()
+                log.info("[Register] [3/7]  ✓ 同意条款")
+
+                log.info("[Register] [4/7] 提交注册表单...")
+                await asyncio.sleep(1)
+                submit = await page.query_selector('button:has-text("Create Account")') or await page.query_selector('button[type="submit"]')
+                if submit: await submit.click()
+                log.info("[Register] [4/7] 已点击提交，等待页面跳转（6s）...")
+                await asyncio.sleep(6)
+
+                url_after = page.url
+                log.info(f"[Register] [4/7] 提交后URL: {url_after}")
+
+                # Check if already logged in (redirected to main page)
+                token = None
+                if BASE_URL in url_after and "auth" not in url_after:
+                    log.info("[Register] [5/7] 已跳转主页，尝试直接获取token...")
+                    await asyncio.sleep(3)
+                    token = await page.evaluate("localStorage.getItem('token')")
+                    if token:
+                        log.info("[Register] [5/7] ✓ 注册后直接获取到token，跳过邮件验证")
+
+                # If no token yet, try explicit login with email+password (faster than email poll)
                 if not token:
-                    log.info("[Register] [6/7] 验证链接后尝试登录...")
+                    log.info("[Register] [5/7] 尝试用账号密码直接登录...")
                     try:
                         await page.goto(f"{BASE_URL}/auth", wait_until="domcontentloaded", timeout=30000)
                         await asyncio.sleep(3)
@@ -321,18 +284,57 @@ async def register_qwen_account() -> Optional[Account]:
                         await asyncio.sleep(8)
                         token = await page.evaluate("localStorage.getItem('token')")
                         if token:
-                            log.info("[Register] [6/7] ✓ 验证后登录成功")
+                            log.info("[Register] [5/7] ✓ 直接登录成功，获取到token")
+                    except Exception as e:
+                        log.warning(f"[Register] [5/7] 直接登录失败: {e}")
+
+                # If still no token, poll email for verification link
+                if not token:
+                    log.info("[Register] [6/7] 等待验证邮件（最多5分钟）...")
+                    verify_link = await mail_client.get_verify_link(timeout_sec=300)
+
+                    if not verify_link:
+                        log.error("[Register] [6/7] 未收到验证邮件，注册失败")
+                        return None
+
+                    log.info(f"[Register] [6/7] ✓ 收到验证链接，访问中...")
+                    try:
+                        await page.goto(verify_link, wait_until="domcontentloaded", timeout=30000)
                     except Exception: pass
+                    await asyncio.sleep(6)
+                    token = await page.evaluate("localStorage.getItem('token')")
+                    log.info(f"[Register] [6/7] 验证后URL: {page.url}")
 
-            if not token:
-                log.error("[Register] 所有方法均无法获取token，注册失败")
-                return None
+                    # Login after verification
+                    if not token:
+                        log.info("[Register] [6/7] 验证链接后尝试登录...")
+                        try:
+                            await page.goto(f"{BASE_URL}/auth", wait_until="domcontentloaded", timeout=30000)
+                            await asyncio.sleep(3)
+                            li_email = await page.query_selector('input[placeholder*="Email"]')
+                            if li_email: await li_email.fill(email)
+                            li_pwd = await page.query_selector('input[type="password"]')
+                            if li_pwd: await li_pwd.fill(password)
+                            li_btn = await page.query_selector('button:has-text("Log in")') or await page.query_selector('button[type="submit"]')
+                            if li_btn: await li_btn.click()
+                            await asyncio.sleep(8)
+                            token = await page.evaluate("localStorage.getItem('token')")
+                            if token:
+                                log.info("[Register] [6/7] ✓ 验证后登录成功")
+                        except Exception: pass
 
-            log.info("[Register] [7/7] 提取 cookies...")
-            all_cookies = await page.context.cookies()
-            cookie_str = "; ".join(f"{c.get('name','')}={c.get('value','')}" for c in all_cookies if "qwen" in c.get("domain", ""))
-            log.info(f"[Register] ✓ 注册完成: {email}")
-            return Account(email=email, password=password, token=token, cookies=cookie_str, username=username)
+                if not token:
+                    log.error("[Register] 所有方法均无法获取token，注册失败")
+                    return None
+
+                log.info("[Register] [7/7] 提取 cookies...")
+                all_cookies = await page.context.cookies()
+                cookie_str = "; ".join(f"{c.get('name','')}={c.get('value','')}" for c in all_cookies if "qwen" in c.get("domain", ""))
+                log.info(f"[Register] ✓ 注册完成: {email}")
+                return Account(email=email, password=password, token=token, cookies=cookie_str, username=username)
+        except Exception as e:
+            log.error(f"[Register] 浏览器引擎崩溃或被拦截: {str(e)}")
+            return None
 
 async def activate_account(acc: Account) -> bool:
     """尝试用临时邮箱去收激活邮件并点击链接，由于和 register 基本一致，简略实现"""
