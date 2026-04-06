@@ -20,15 +20,22 @@ async def anthropic_messages(request: Request):
     users_db = app.state.users_db
     client: QwenClient = app.state.qwen_client
     
-    auth_header = request.headers.get("x-api-key")
-    if not auth_header:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    # 鉴权 (完全复原单文件逻辑)
+    auth_header = request.headers.get("x-api-key", "")
     token = auth_header
-    
+
+    from backend.core.config import API_KEYS, settings
+    admin_k = settings.ADMIN_KEY
+
+    if API_KEYS:
+        if token != admin_k and token not in API_KEYS and not token:
+            raise HTTPException(status_code=401, detail="Invalid API Key")
+
+    # 获取下游用户处理配额
     users = await users_db.get()
     user = next((u for u in users if u["id"] == token), None)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+    if user and user.get("quota", 0) <= user.get("used_tokens", 0):
+        raise HTTPException(status_code=402, detail="Quota Exceeded")
         
     body = await request.json()
     model = resolve_model(body.get("model", "claude-3-5-sonnet"))

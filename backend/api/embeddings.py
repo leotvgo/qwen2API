@@ -19,15 +19,21 @@ async def create_embeddings(request: Request):
     app = request.app
     users_db = app.state.users_db
     
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    token = auth_header.split(" ")[1]
-    
+    # 鉴权 (完全复原单文件逻辑)
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else ""
+
+    from backend.core.config import API_KEYS, settings
+    admin_k = settings.ADMIN_KEY
+
+    if API_KEYS:
+        if token != admin_k and token not in API_KEYS and not token:
+            raise HTTPException(status_code=401, detail="Invalid API Key")
+
     users = await users_db.get()
     user = next((u for u in users if u["id"] == token), None)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+    if user and user.get("quota", 0) <= user.get("used_tokens", 0):
+        raise HTTPException(status_code=402, detail="Quota Exceeded")
         
     body = await request.json()
     model = body.get("model", "text-embedding-ada-002")

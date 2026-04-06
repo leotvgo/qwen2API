@@ -18,19 +18,25 @@ async def chat_completions(request: Request):
     users_db = app.state.users_db
     client: QwenClient = app.state.qwen_client
     
-    # 鉴权
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    token = auth_header.split(" ")[1]
-    
-    # 获取下游用户
+    # 鉴权 (完全复原单文件逻辑)
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else ""
+
+    from backend.core.config import API_KEYS, settings
+    admin_k = settings.ADMIN_KEY
+
+    # 兼容处理逻辑：
+    # 1. 没有配置 API_KEYS 则默认放行
+    # 2. 若配置了，则接受 admin_key 或存在于 API_KEYS 中的 key
+    # 3. 甚至接受任何非空 key（放宽限制，以支持各种三方工具自带 key）
+    if API_KEYS:
+        if token != admin_k and token not in API_KEYS and not token:
+            raise HTTPException(status_code=401, detail="Invalid API Key")
+
+    # 获取下游用户并处理配额（如果该功能启用且存在对应的用户）
     users = await users_db.get()
     user = next((u for u in users if u["id"] == token), None)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
-        
-    if user.get("quota", 0) <= user.get("used_tokens", 0):
+    if user and user.get("quota", 0) <= user.get("used_tokens", 0):
         raise HTTPException(status_code=402, detail="Quota Exceeded")
         
     body = await request.json()
