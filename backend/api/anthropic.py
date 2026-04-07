@@ -156,7 +156,7 @@ async def anthropic_messages(request: Request):
                         current_prompt = current_prompt[:-10]
                         
                     # 注入思考终止符，强制其直接输出结果
-                    reminder = "\n\n【IMPORTANT: You have thought enough. Do NOT just think silently. You MUST output a ✿ACTION✿ format tool call immediately! 必须直接输出 ✿ACTION✿ 工具调用，不准继续思考！】\n\nAssistant: "
+                    reminder = "\n\n【IMPORTANT: You MUST respond NOW. You MUST output a tool call using ✿ACTION✿ format or provide a final answer. 必须直接输出 ✿ACTION✿ 工具调用或最终回答！】\n\nAssistant: "
                     current_prompt += reminder
                         
                     import asyncio

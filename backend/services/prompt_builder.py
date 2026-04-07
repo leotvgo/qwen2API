@@ -90,7 +90,7 @@ def build_prompt_with_tools(messages: list, tools: list) -> str:
             "4. DO NOT add any markdown formatting (like ```json) inside the tags.",
             "5. After receiving a [Tool Result], analyze it and decide the next step.",
             "6. Only provide a final answer when all necessary steps are completed.",
-            "7. DO NOT just think silently. DO NOT end your response without either calling a tool or providing a final answer.",
+            "7. IF YOU DO NOT OUTPUT A VALID TOOL CALL, THE SYSTEM WILL CRASH.",
             "",
             "CRITICALLY FORBIDDEN FORMATS (USING THESE WILL CAUSE FATAL ERRORS):",
             '- {"name": "X", "arguments": "..."}',
@@ -212,9 +212,8 @@ def build_prompt_with_tools(messages: list, tools: list) -> str:
     
     if tools:
         parts.append(
-            "[REMINDER: When calling a tool, you MUST use ✿ACTION✿{\"action\": \"NAME\", \"args\": {...}}✿END_ACTION✿ format. "
-            "You are a highly capable agent. Reason about the user's intent and the tools available to you before answering. "
-            "DO NOT use any other format.]"
+            "[CRITICAL REMINDER: You MUST use ✿ACTION✿{\"action\": \"NAME\", \"args\": {...}}✿END_ACTION✿ format. "
+            "DO NOT just think silently. You MUST output a tool call after your thinking.]"
         )
         
     parts.append("Assistant: <think>\n")
