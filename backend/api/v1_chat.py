@@ -119,7 +119,7 @@ async def chat_completions(request: Request):
                             inp = json.loads(tc["args"]) if tc["args"] else {}
                         except (json.JSONDecodeError, ValueError):
                             inp = {"raw": tc["args"]}
-                        tc_parts.append(f'##TOOL_CALL##\n{{"name": {json.dumps(name)}, "input": {json.dumps(inp, ensure_ascii=False)}}}\n##END_CALL##')
+                        tc_parts.append(f'✿ACTION✿\n{{"action": {json.dumps(name)}, "args": {json.dumps(inp, ensure_ascii=False)}}}\n✿END_ACTION✿')
                     
                     if not answer_text:
                         answer_text = "\n\n".join(tc_parts)

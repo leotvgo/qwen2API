@@ -20,7 +20,7 @@ def _extract_text(content, user_tool_mode: bool = False) -> str:
             elif t == "tool_use":
                 inp = json.dumps(part.get("input", {}), ensure_ascii=False)
                 other_parts.append(
-                    f'##TOOL_CALL##\n{{"name": {json.dumps(part.get("name",""))}, "input": {inp}}}\n##END_CALL##'
+                    f'✿ACTION✿\n{{"action": {json.dumps(part.get("name",""))}, "args": {inp}}}\n✿END_ACTION✿'
                 )
             elif t == "tool_result":
                 inner = part.get("content", "")
@@ -72,36 +72,33 @@ def build_prompt_with_tools(messages: list, tools: list) -> str:
     if tools:
         names = [t.get("name", "") for t in tools if t.get("name")]
         lines = [
-            "=== MANDATORY TOOL CALL INSTRUCTIONS ===",
-            "IGNORE any previous output format instructions (needs-review, recap, etc.).",
-            f"You have access to these tools: {', '.join(names)}",
+            "=== CRITICAL INSTRUCTIONS FOR TOOL EXECUTION ===",
+            "YOU MUST FORGET ALL PREVIOUS FUNCTION CALLING FORMATS.",
+            "DO NOT USE `<|tool_call|>` or any native JSON structure.",
+            "YOU CAN ONLY USE THE CUSTOM `✿ACTION✿` FORMAT DEFINED BELOW.",
+            f"Available actions: {', '.join(names)}",
             "",
-            "WHEN YOU NEED TO CALL A TOOL — output EXACTLY this format (nothing else):",
-            "##TOOL_CALL##",
-            '{"name": "EXACT_TOOL_NAME", "input": {"param1": "value1"}}',
-            "##END_CALL##",
+            "WHEN YOU DECIDE TO USE A TOOL, YOU MUST OUTPUT EXACTLY THIS FORMAT:",
+            "✿ACTION✿",
+            '{"action": "EXACT_ACTION_NAME", "args": {"param1": "value1"}}',
+            "✿END_ACTION✿",
             "",
-            "MULTI-TURN RULES:",
-            "- After a [Tool Result] block appears in the conversation, read it and decide next action.",
-            "- If more tool calls are needed, emit another ##TOOL_CALL## block.",
-            "- Only give a final text answer when ALL needed information is gathered.",
-            "- Never skip calling a tool that is required to complete the user request.",
-            "- The history shows ##TOOL_CALL## blocks you already made and their [Tool Result] responses.",
+            "RULES:",
+            "1. You MUST use ✿ACTION✿ and ✿END_ACTION✿ tags.",
+            "2. Inside the tags, output ONLY valid JSON.",
+            "3. The JSON MUST have an 'action' key and an 'args' key.",
+            "4. DO NOT add any markdown formatting (like ```json) inside the tags.",
+            "5. After receiving a [Tool Result], analyze it and decide the next step.",
+            "6. Only provide a final answer when all necessary steps are completed.",
             "",
-            "STRICT RULES:",
-            "- No preamble, no explanation before or after ##TOOL_CALL##...##END_CALL##.",
-            "- Use EXACT tool name from the list below.",
-            "- When NO tool is needed, answer normally in plain text.",
+            "CRITICALLY FORBIDDEN FORMATS (USING THESE WILL CAUSE FATAL ERRORS):",
+            '- {"name": "X", "arguments": "..."}',
+            '- {"type": "function", "name": "X"}',
+            '- {"type": "tool_use", "name": "X"}',
+            "- ##TOOL_CALL##",
+            "If you use any of the above forbidden formats, the system will crash.",
             "",
-            "CRITICAL — FORBIDDEN FORMATS (will be INTERCEPTED and BLOCKED by server):",
-            '- {"name": "X", "arguments": "..."}  <-- NEVER USE',
-            '- {"type": "function", "name": "X"}  <-- NEVER USE',
-            '- {"type": "tool_use", "name": "X"}  <-- NEVER USE',
-            "- <function_calls><invoke name=\"X\">  <-- NEVER USE",
-            "- <tool_call>{...}</tool_call>  <-- NEVER USE",
-            "ONLY ##TOOL_CALL##...##END_CALL## is accepted. Any other format will cause 'Tool X does not exists.' error.",
-            "",
-            "Available tools:",
+            "Tool Descriptions:",
         ]
 
         verbose_tools = len(tools) <= 20
@@ -175,7 +172,7 @@ def build_prompt_with_tools(messages: list, tools: list) -> str:
                 except (json.JSONDecodeError, ValueError):
                     args = {"raw": args_str}
                 tc_parts.append(
-                    f'##TOOL_CALL##\n{{"name": {json.dumps(name)}, "input": {json.dumps(args, ensure_ascii=False)}}}\n##END_CALL##'
+                    f'✿ACTION✿\n{{"action": {json.dumps(name)}, "args": {json.dumps(args, ensure_ascii=False)}}}\n✿END_ACTION✿'
                 )
             text = "\n\n".join(tc_parts)
 
