@@ -66,10 +66,7 @@ def build_prompt_with_tools(messages: list, tools: list) -> str:
         if m.get("role") == "system":
             system_text += str(m.get("content", "")) + "\n"
             
-    if tools:
-        sys_part = ""
-    else:
-        sys_part = f"<system>\n{system_text[:2000]}\n</system>" if system_text else ""
+    sys_part = f"<system>\n{system_text}\n</system>" if system_text else ""
         
     tools_part = ""
     if tools:

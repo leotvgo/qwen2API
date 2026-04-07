@@ -162,12 +162,20 @@ def parse_tool_calls(answer: str, tools: list):
         return blocks, "tool_use"
 
     # 5. 极端保底拦截：只要看到文本中含有明显意图，但正则全部失败，强制触发纠偏
-    # 例如 Qwen 输出: "我将使用 Tool Read 来读取..." 或者 "Tool Glob does not exist"
     if answer.strip() and tools:
         lower_ans = answer.lower()
-        if "tool" in lower_ans:
+        # 匹配明确的工具调用意图词
+        intent_keywords = ["tool", "工具", "调用", "执行", "read", "write", "grep", "bash", "glob"]
+        
+        found_intent = False
+        # 只有在明确提到“使用/调用 xxx 工具/命令”时才拦截，避免普通对话被误杀
+        if "tool" in lower_ans or "工具" in lower_ans:
+            found_intent = True
+        elif any(kw in lower_ans for kw in ["调用", "执行", "使用"]) and any(tn.lower() in lower_ans for tn in tool_names):
+            found_intent = True
+            
+        if found_intent:
             log.warning(f"[ToolParse] 未匹配到正确格式，但检测到工具调用意图。强制阻断纯文本返回。")
-            # 尝试在文本中寻找被提及的工具名
             fallback_name = None
             for tn in tool_names:
                 if tn.lower() in lower_ans:
