@@ -1,6 +1,7 @@
 name: Docker Build and Push
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main", "master" ]
     # 当你打标签（比如发布 v1.0.0）时也会触发
