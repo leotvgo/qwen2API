@@ -215,7 +215,7 @@ def build_prompt_with_tools(messages: list, tools: list) -> str:
             "[CRITICAL REMINDER: You MUST use ✿ACTION✿{\"action\": \"NAME\", \"args\": {...}}✿END_ACTION✿ format. "
             "DO NOT just think silently. You MUST output a tool call after your thinking.]"
         )
-        
-    parts.append("Assistant: <think>\n")
+
+    parts.append("Assistant:")
     return "\n\n".join(parts)
 

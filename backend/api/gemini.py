@@ -57,7 +57,17 @@ async def gemini_stream(model: str, request: Request):
     log.info(f"[Gemini] model={resolved_model}, stream=True, prompt_len={len(content)}")
 
     try:
-        events, chat_id, acc = await client.chat_stream_events_with_retry(resolved_model, content)
+        meta = None
+        events = []
+        async for item in client.chat_stream_events_with_retry(resolved_model, content):
+            if item["type"] == "meta":
+                meta = item
+            elif item["type"] == "event":
+                events.append(item["event"])
+        if not meta:
+            raise Exception("missing stream metadata")
+        chat_id = meta["chat_id"]
+        acc = meta["acc"]
     except Exception as e:
         log.error(f"Gemini proxy failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -68,13 +78,23 @@ async def gemini_stream(model: str, request: Request):
             for evt in events:
                 if evt.get("type") == "delta":
                     text = evt.get("content", "")
+                    if not text:
+                        continue
                     full_text += text
                     chunk = {
                         "candidates": [
                             {"content": {"parts": [{"text": text}], "role": "model"}}
                         ]
                     }
-                    yield f"data: {json.dumps(chunk)}\n\n"
+                    yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+
+            if not full_text:
+                chunk = {
+                    "candidates": [
+                        {"content": {"parts": [{"text": ""}], "role": "model"}, "finishReason": "STOP"}
+                    ]
+                }
+                yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
             log.info(f"[Gemini] Request complete. Generated {len(full_text)} characters.")
                     
