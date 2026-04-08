@@ -35,23 +35,27 @@ async (args) => {
             body: JSON.stringify(args.payload),
             signal: controller.signal
         });
+        const ct = res.headers.get('content-type') || '';
         if (!res.ok) {
             const t = await res.text();
             clearTimeout(timer);
-            return { status: res.status, body: t.substring(0, 2000) };
+            return { status: res.status, body: t.substring(0, 2000), content_type: ct };
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        let idx = 0;
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+            idx += 1;
             const chunk = decoder.decode(value, { stream: true });
             if (window.send_chunk) {
+                await window.send_chunk(args.chat_id, `[JS-STREAM] idx=${idx} len=${chunk.length} ct=${ct} preview=${chunk.substring(0, 300)}`);
                 await window.send_chunk(args.chat_id, chunk);
             }
         }
         clearTimeout(timer);
-        return { status: res.status, body: "streamed" };
+        return { status: res.status, body: "streamed", content_type: ct };
     } catch(e) {
         clearTimeout(timer);
         return { status: 0, body: 'JS error: ' + e.message };
