@@ -149,6 +149,7 @@ class QwenClient:
 
     def parse_sse_chunk(self, chunk: str) -> list[dict]:
         events = []
+        raw_payloads = []
         for line in chunk.splitlines():
             line = line.strip()
             if not line.startswith("data:"):
@@ -156,12 +157,17 @@ class QwenClient:
             data = line[5:].strip()
             if not data or data == "[DONE]":
                 continue
+            raw_payloads.append(data)
             try:
                 obj = json.loads(data)
                 events.append(obj)
             except Exception:
+                log.warning(f"[SSE-Parse] 非 JSON chunk: {data[:300]!r}")
                 continue
-        
+
+        if raw_payloads:
+            log.info(f"[SSE-Raw] 收到原始 chunk {len(raw_payloads)} 条，首条: {raw_payloads[0][:500]!r}")
+
         parsed = []
         for evt in events:
             if evt.get("choices"):
@@ -173,6 +179,8 @@ class QwenClient:
                     "status": delta.get("status", ""),
                     "extra": delta.get("extra", {})
                 })
+            else:
+                log.info(f"[SSE-Shape] 未命中 choices/delta 结构: {json.dumps(evt, ensure_ascii=False)[:800]}")
         return parsed
 
     async def chat_stream_events_with_retry(self, model: str, content: str, has_custom_tools: bool = True):
