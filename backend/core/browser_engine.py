@@ -241,13 +241,26 @@ class BrowserEngine:
                 item = await queue.get()
                 if isinstance(item, str):
                     yield {"status": 200, "chunk": item}
-                elif isinstance(item, dict) and item.get("type") == "end":
-                    res = item["result"]
-                    if res.get("status") != 200 and res.get("status") != "streamed":
-                        log.warning(f"[Browser] JS Error/Non-200: {res.get('body','')[:100]}")
-                        needs_refresh = True
-                        yield res
-                    break
+                elif isinstance(item, dict):
+                    if item.get("type") == "end":
+                        res = item["result"]
+                        if res.get("status") != 200 and res.get("status") != "streamed":
+                            log.warning(f"[Browser] JS Error/Non-200: {res.get('body','')[:100]}")
+                            needs_refresh = True
+                            yield res
+                        break
+
+                    if "chunk" in item and isinstance(item.get("chunk"), str):
+                        log.info(f"[Browser-Bridge] dict.chunk received: {item['chunk'][:300]!r}")
+                        yield {"status": 200, "chunk": item["chunk"]}
+                        continue
+
+                    if "data" in item and isinstance(item.get("data"), str):
+                        log.info(f"[Browser-Bridge] dict.data received: {item['data'][:300]!r}")
+                        yield {"status": 200, "chunk": item["data"]}
+                        continue
+
+                    log.info(f"[Browser-Bridge] unhandled item shape: {str(item)[:500]}")
         finally:
             if chat_id in self.stream_queues:
                 del self.stream_queues[chat_id]
